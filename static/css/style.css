@@ -1,0 +1,324 @@
+/* Custom styles for LinkedIn Company Scraper */
+
+/* CSS Variables for theming */
+:root {
+    --primary-color: #0066cc;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+    --muted-color: #6c757d;
+}
+
+/* Body and global styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+/* Navigation enhancements */
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.navbar-brand i {
+    margin-right: 0.5rem;
+    width: 20px;
+    height: 20px;
+}
+
+.nav-link i {
+    margin-right: 0.5rem;
+    width: 16px;
+    height: 16px;
+}
+
+/* Card enhancements */
+.card {
+    border: 1px solid rgba(255, 255, 255, 0.125);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+/* Form enhancements */
+.form-control, .form-select {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--bs-body-color);
+    transition: all 0.15s ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+}
+
+/* Button enhancements */
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn i {
+    margin-right: 0.5rem;
+    width: 16px;
+    height: 16px;
+}
+
+.btn-lg i {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-sm i {
+    width: 14px;
+    height: 14px;
+    margin-right: 0.25rem;
+}
+
+/* Table enhancements */
+.table {
+    color: var(--bs-body-color);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: var(--bs-secondary);
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.5px;
+}
+
+/* Badge enhancements */
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+    border-radius: 0.375rem;
+}
+
+/* Modal enhancements */
+.modal-content {
+    border: 1px solid rgba(255, 255, 255, 0.125);
+    background-color: var(--bs-dark);
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+/* Loading states */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Company card specific styles */
+.company-card .card {
+    height: 100%;
+    transition: all 0.2s ease-in-out;
+}
+
+.company-card .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.2);
+}
+
+.company-card .card-body {
+    flex: 1;
+}
+
+.company-card .badge {
+    font-size: 0.7rem;
+}
+
+/* Footer styles */
+footer {
+    margin-top: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-group-vertical .btn {
+        margin-bottom: 0.5rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+/* Animation classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Alert enhancements */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    border-left-color: var(--bs-success);
+}
+
+.alert-danger {
+    border-left-color: var(--bs-danger);
+}
+
+.alert-warning {
+    border-left-color: var(--bs-warning);
+}
+
+.alert-info {
+    border-left-color: var(--bs-info);
+}
+
+/* Progress bars */
+.progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Text utilities */
+.text-gradient {
+    background: linear-gradient(45deg, var(--bs-primary), var(--bs-info));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Icon spacing utilities */
+.icon-left {
+    margin-right: 0.5rem;
+}
+
+.icon-right {
+    margin-left: 0.5rem;
+}
+
+/* Utility classes for spacing */
+.m-auto {
+    margin: auto;
+}
+
+.p-auto {
+    padding: auto;
+}
+
+/* Custom border utilities */
+.border-start-primary {
+    border-left: 3px solid var(--bs-primary) !important;
+}
+
+.border-start-success {
+    border-left: 3px solid var(--bs-success) !important;
+}
+
+.border-start-danger {
+    border-left: 3px solid var(--bs-danger) !important;
+}
+
+.border-start-warning {
+    border-left: 3px solid var(--bs-warning) !important;
+}
+
+.border-start-info {
+    border-left: 3px solid var(--bs-info) !important;
+}

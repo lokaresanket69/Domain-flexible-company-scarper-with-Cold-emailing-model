@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Scraping Results - LinkedIn Company Scraper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i data-feather="check-circle"></i>
+                Scraping Results
+            </h2>
+            <div>
+                <a href="{{ url_for('download') }}" class="btn btn-success me-2">
+                    <i data-feather="download"></i>
+                    Download CSV
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i data-feather="arrow-left"></i>
+                    New Search
+                </a>
+            </div>
+        </div>
+
+        {% if results %}
+            <!-- Results Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ results|length }}</h3>
+                            <p class="text-muted mb-0">Companies Found</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">
+                                {{ results|selectattr('sentiment', 'equalto', 'positive')|list|length }}
+                            </h3>
+                            <p class="text-muted mb-0">Positive Sentiment</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-info">
+                                {{ results|selectattr('domain_class')|map(attribute='domain_class')|unique|list|length }}
+                            </h3>
+                            <p class="text-muted mb-0">Industries</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-warning">
+                                {{ (results|map(attribute='description_length')|sum / results|length)|round|int if results else 0 }}
+                            </h3>
+                            <p class="text-muted mb-0">Avg Description Length</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="table"></i>
+                        Company Data
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Industry</th>
+                                    <th>Size</th>
+                                    <th>Location</th>
+                                    <th>Sentiment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for company in results %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <h6 class="mb-1">{{ company.name or 'Unknown' }}</h6>
+                                            {% if company.domain_class %}
+                                                <span class="badge bg-secondary">{{ company.domain_class }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{{ company.domain_class or 'Unknown' }}</td>
+                                    <td>{{ company.size or 'Unknown' }}</td>
+                                    <td>{{ company.location or 'Unknown' }}</td>
+                                    <td>
+                                        {% if company.sentiment == 'positive' %}
+                                            <span class="badge bg-success">Positive</span>
+                                        {% elif company.sentiment == 'negative' %}
+                                            <span class="badge bg-danger">Negative</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Neutral</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if company.companyLinkedinUrl %}
+                                            <a href="{{ company.companyLinkedinUrl }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i data-feather="external-link"></i>
+                                                LinkedIn
+                                            </a>
+                                        {% endif %}
+                                        {% if company.website %}
+                                            <a href="{{ company.website }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                <i data-feather="globe"></i>
+                                                Website
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company Details Modal Template -->
+            <div class="modal fade" id="companyModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Company Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="companyDetails"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- No Results -->
+            <div class="text-center py-5">
+                <i data-feather="search" style="width: 64px; height: 64px;" class="text-muted mb-3"></i>
+                <h3>No Companies Found</h3>
+                <p class="text-muted">Try adjusting your search parameters and running the scraper again.</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i data-feather="arrow-left"></i>
+                    Back to Search
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add any additional JavaScript for results page
+    feather.replace();
+</script>
+{% endblock %}

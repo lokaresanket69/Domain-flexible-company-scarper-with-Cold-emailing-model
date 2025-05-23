@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Home - LinkedIn Company Scraper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold">LinkedIn Company Scraper</h1>
+            <p class="lead text-muted">Extract and analyze company data from LinkedIn with advanced NLP processing</p>
+        </div>
+
+        <!-- Scraper Form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="search"></i>
+                    Company Search Parameters
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('scrape') }}" method="POST" id="scraperForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="keywords" class="form-label">Keywords</label>
+                            <input type="text" class="form-control" id="keywords" name="keywords" 
+                                   value="{{ config.get('keywords', 'IT services') }}" 
+                                   placeholder="e.g., IT services, fintech, AI">
+                            <div class="form-text">Enter keywords to search for companies</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" class="form-control" id="country" name="country" 
+                                   value="{{ config.get('country', 'United Kingdom') }}" 
+                                   placeholder="e.g., United Kingdom, United States">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="founded_years" class="form-label">Founded Years</label>
+                            <input type="text" class="form-control" id="founded_years" name="founded_years" 
+                                   value="{{ config.get('founded_years', ['2015', '2016', '2017'])|join(', ') }}" 
+                                   placeholder="e.g., 2015, 2016, 2017">
+                            <div class="form-text">Comma-separated years</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="size" class="form-label">Company Size</label>
+                            <select class="form-select" id="size" name="size">
+                                <option value="1-10" {{ 'selected' if config.get('size') == '1-10' else '' }}>1-10 employees</option>
+                                <option value="11-50" {{ 'selected' if config.get('size') == '11-50' else '' }}>11-50 employees</option>
+                                <option value="51-200" {{ 'selected' if config.get('size') == '51-200' else '' }}>51-200 employees</option>
+                                <option value="201-500" {{ 'selected' if config.get('size') == '201-500' else '' }}>201-500 employees</option>
+                                <option value="501-1000" {{ 'selected' if config.get('size') == '501-1000' else '' }}>501-1000 employees</option>
+                                <option value="1001-5000" {{ 'selected' if config.get('size') == '1001-5000' else '' }}>1001-5000 employees</option>
+                                <option value="5001+" {{ 'selected' if config.get('size') == '5001+' else '' }}>5001+ employees</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="max_results" class="form-label">Max Results</label>
+                            <input type="number" class="form-control" id="max_results" name="max_results" 
+                                   value="{{ config.get('max_results', 10) }}" min="1" max="50">
+                            <div class="form-text">Maximum number of companies to scrape (1-50)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sleep_time" class="form-label">Sleep Time (seconds)</label>
+                            <input type="number" class="form-control" id="sleep_time" name="sleep_time" 
+                                   value="{{ config.get('sleep_time', 1.0) }}" min="0.5" max="10" step="0.1">
+                            <div class="form-text">Delay between requests to avoid rate limiting</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="scrapeBtn">
+                            <i data-feather="play"></i>
+                            Start Scraping
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i data-feather="building" class="mb-3" style="width: 48px; height: 48px;"></i>
+                        <h5>View Companies</h5>
+                        <p class="text-muted">Browse all scraped company data</p>
+                        <a href="{{ url_for('view_companies') }}" class="btn btn-outline-primary">
+                            View All Companies
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i data-feather="download" class="mb-3" style="width: 48px; height: 48px;"></i>
+                        <h5>Download Data</h5>
+                        <p class="text-muted">Export company data as CSV</p>
+                        {% if csv_exists %}
+                            <a href="{{ url_for('download') }}" class="btn btn-outline-success">
+                                Download CSV
+                            </a>
+                        {% else %}
+                            <button class="btn btn-outline-secondary" disabled>
+                                No Data Available
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Modal -->
+        <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body text-center py-4">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5>Scraping LinkedIn Companies...</h5>
+                        <p class="text-muted">This may take a few minutes depending on the number of results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('scraperForm').addEventListener('submit', function() {
+        // Show loading modal
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+        
+        // Disable submit button
+        const submitBtn = document.getElementById('scrapeBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Scraping...';
+    });
+</script>
+{% endblock %}

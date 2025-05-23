@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}All Companies - LinkedIn Company Scraper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i data-feather="building"></i>
+                All Companies
+            </h2>
+            <div>
+                <a href="{{ url_for('download') }}" class="btn btn-success me-2">
+                    <i data-feather="download"></i>
+                    Download CSV
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i data-feather="plus"></i>
+                    Add More Companies
+                </a>
+            </div>
+        </div>
+
+        {% if companies %}
+            <!-- Analytics Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ companies|length }}</h3>
+                            <p class="text-muted mb-0">Total Companies</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">
+                                {{ companies|selectattr('sentiment', 'equalto', 'positive')|list|length }}
+                            </h3>
+                            <p class="text-muted mb-0">Positive Sentiment</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-info">
+                                {{ companies|selectattr('domain_class')|map(attribute='domain_class')|unique|list|length }}
+                            </h3>
+                            <p class="text-muted mb-0">Industries</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-warning">
+                                {{ (companies|map(attribute='description_length')|sum / companies|length)|round|int if companies else 0 }}
+                            </h3>
+                            <p class="text-muted mb-0">Avg Description Length</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="industryFilter" class="form-label">Industry</label>
+                            <select class="form-select" id="industryFilter">
+                                <option value="">All Industries</option>
+                                {% for industry in companies|map(attribute='domain_class')|unique|sort %}
+                                    {% if industry %}
+                                        <option value="{{ industry }}">{{ industry }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sentimentFilter" class="form-label">Sentiment</label>
+                            <select class="form-select" id="sentimentFilter">
+                                <option value="">All Sentiments</option>
+                                <option value="positive">Positive</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="negative">Negative</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="searchFilter" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="searchFilter" placeholder="Search companies...">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                                <i data-feather="x"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Companies Grid -->
+            <div class="row" id="companiesGrid">
+                {% for company in companies %}
+                <div class="col-lg-6 mb-4 company-card" 
+                     data-industry="{{ company.domain_class or '' }}" 
+                     data-sentiment="{{ company.sentiment or '' }}"
+                     data-search="{{ (company.name + ' ' + (company.description or '') + ' ' + (company.keywords or ''))|lower }}">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1">{{ company.name or 'Unknown Company' }}</h5>
+                                {% if company.domain_class %}
+                                    <span class="badge bg-secondary">{{ company.domain_class }}</span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                {% if company.sentiment == 'positive' %}
+                                    <span class="badge bg-success">Positive</span>
+                                {% elif company.sentiment == 'negative' %}
+                                    <span class="badge bg-danger">Negative</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Neutral</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if company.description %}
+                                <p class="text-muted">{{ company.description[:200] }}{% if company.description|length > 200 %}...{% endif %}</p>
+                            {% endif %}
+                            
+                            <div class="row text-sm mb-3">
+                                {% if company.size %}
+                                    <div class="col-6">
+                                        <strong>Size:</strong> {{ company.size }}
+                                    </div>
+                                {% endif %}
+                                {% if company.location %}
+                                    <div class="col-6">
+                                        <strong>Location:</strong> {{ company.location }}
+                                    </div>
+                                {% endif %}
+                                {% if company.founded %}
+                                    <div class="col-6">
+                                        <strong>Founded:</strong> {{ company.founded }}
+                                    </div>
+                                {% endif %}
+                                {% if company.description_length %}
+                                    <div class="col-6">
+                                        <strong>Desc Length:</strong> {{ company.description_length }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            {% if company.keywords %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Keywords:</small><br>
+                                    {% for keyword in company.keywords.split(',')[:5] %}
+                                        <span class="badge bg-light text-dark me-1">{{ keyword.strip() }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            {% if company.technologies %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Technologies:</small><br>
+                                    {% for tech in company.technologies.split(',')[:3] %}
+                                        <span class="badge bg-info me-1">{{ tech.strip() }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    {% if company.scraped_at %}
+                                        Scraped: {{ company.scraped_at }}
+                                    {% endif %}
+                                </small>
+                                <div>
+                                    {% if company.companyLinkedinUrl %}
+                                        <a href="{{ company.companyLinkedinUrl }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i data-feather="linkedin"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if company.website %}
+                                        <a href="{{ company.website }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i data-feather="globe"></i>
+                                        </a>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-info" onclick="showCompanyDetails({{ company.id }})">
+                                        <i data-feather="eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Company Details Modal -->
+            <div class="modal fade" id="companyDetailsModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Company Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="companyDetailsContent">
+                                <!-- Content will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- No Companies -->
+            <div class="text-center py-5">
+                <i data-feather="building" style="width: 64px; height: 64px;" class="text-muted mb-3"></i>
+                <h3>No Companies Found</h3>
+                <p class="text-muted">Start by running the scraper to collect company data.</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i data-feather="search"></i>
+                    Start Scraping
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Filter functionality
+    function filterCompanies() {
+        const industryFilter = document.getElementById('industryFilter').value.toLowerCase();
+        const sentimentFilter = document.getElementById('sentimentFilter').value.toLowerCase();
+        const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+        
+        const companyCards = document.querySelectorAll('.company-card');
+        
+        companyCards.forEach(card => {
+            const industry = card.getAttribute('data-industry').toLowerCase();
+            const sentiment = card.getAttribute('data-sentiment').toLowerCase();
+            const searchText = card.getAttribute('data-search');
+            
+            let show = true;
+            
+            if (industryFilter && !industry.includes(industryFilter)) {
+                show = false;
+            }
+            
+            if (sentimentFilter && sentiment !== sentimentFilter) {
+                show = false;
+            }
+            
+            if (searchFilter && !searchText.includes(searchFilter)) {
+                show = false;
+            }
+            
+            card.style.display = show ? 'block' : 'none';
+        });
+    }
+    
+    function clearFilters() {
+        document.getElementById('industryFilter').value = '';
+        document.getElementById('sentimentFilter').value = '';
+        document.getElementById('searchFilter').value = '';
+        filterCompanies();
+    }
+    
+    function showCompanyDetails(companyId) {
+        // This would fetch company details via AJAX
+        // For now, we'll show a placeholder
+        const modal = new bootstrap.Modal(document.getElementById('companyDetailsModal'));
+        document.getElementById('companyDetailsContent').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading company details...</p>
+            </div>
+        `;
+        modal.show();
+        
+        // Simulate loading
+        setTimeout(() => {
+            document.getElementById('companyDetailsContent').innerHTML = `
+                <p>Detailed company information would be displayed here.</p>
+                <p>Company ID: ${companyId}</p>
+            `;
+        }, 1000);
+    }
+    
+    // Add event listeners
+    document.getElementById('industryFilter').addEventListener('change', filterCompanies);
+    document.getElementById('sentimentFilter').addEventListener('change', filterCompanies);
+    document.getElementById('searchFilter').addEventListener('input', filterCompanies);
+    
+    // Initialize feather icons
+    feather.replace();
+</script>
+{% endblock %}

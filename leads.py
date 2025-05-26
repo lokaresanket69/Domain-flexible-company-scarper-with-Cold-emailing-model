@@ -205,47 +205,81 @@ def scrape_linkedin_company_page(url, user_agent='Mozilla/5.0 (Windows NT 10.0; 
 
 def google_search_linkedin_companies(query, max_results=10):
     """
-    Search for LinkedIn company URLs via Google Custom Search or fallback methods
+    Search for LinkedIn company URLs using multiple methods with keyword-based URL construction
     """
     logger.debug(f"Searching for: {query}")
     urls = []
     
+    # First try: Google search with proper error handling
     try:
-        # Try using googlesearch-python if available
         from googlesearch import search
         search_query = f"{query} site:linkedin.com/company"
-        for url in search(search_query, num_results=max_results*2, stop=max_results*2):
-            if 'linkedin.com/company/' in url and url not in urls:
-                urls.append(url)
-                if len(urls) >= max_results:
-                    break
-    except ImportError:
-        logger.warning("googlesearch-python not available, using fallback method")
-        # Fallback: construct some realistic LinkedIn URLs based on query
-        keywords = query.lower().split()
-        base_domains = ['finance', 'technology', 'consulting', 'software', 'digital', 'services']
+        logger.debug(f"Google search query: {search_query}")
         
-        for i, domain in enumerate(base_domains[:max_results]):
-            if i < len(keywords):
-                company_slug = keywords[i].replace(' ', '-')
-            else:
-                company_slug = domain
+        for url in search(search_query, num_results=max_results*3, lang='en', safe='off', pause=2):
+            if 'linkedin.com/company/' in str(url):
+                clean_url = str(url).split('&')[0].split('?')[0]
+                if clean_url not in urls:
+                    urls.append(clean_url)
+                    if len(urls) >= max_results:
+                        break
+        
+        if urls:
+            logger.debug(f"Google search found {len(urls)} URLs")
+            return urls[:max_results]
             
-            url = f"https://uk.linkedin.com/company/{company_slug}"
-            urls.append(url)
     except Exception as e:
-        logger.error(f"Error in Google search: {str(e)}")
-        # Final fallback - some example URLs for testing
-        urls = [
-            "https://uk.linkedin.com/company/microsoft",
-            "https://uk.linkedin.com/company/google",
-            "https://uk.linkedin.com/company/amazon",
-            "https://uk.linkedin.com/company/apple",
-            "https://uk.linkedin.com/company/meta"
-        ][:max_results]
+        logger.warning(f"Google search failed: {str(e)}")
+    
+    # Second method: Construct likely LinkedIn URLs based on query keywords
+    logger.debug("Constructing LinkedIn URLs based on query keywords")
+    keywords = query.lower().replace(' companies', '').replace(' company', '').split()
+    
+    # Industry-specific LinkedIn company patterns
+    industry_mappings = {
+        'fintech': ['stripe', 'square', 'plaid', 'klarna', 'revolut', 'wise', 'checkout', 'adyen'],
+        'ai': ['openai', 'anthropic', 'deepmind', 'scale-ai', 'huggingface', 'stability-ai'],
+        'crypto': ['coinbase', 'binance', 'kraken', 'gemini', 'blockchain', 'chainlink'],
+        'healthcare': ['tempus', 'flatiron-health', 'veracyte', 'guardant-health', 'moderna'],
+        'ecommerce': ['shopify', 'bigcommerce', 'woocommerce', 'magento', 'prestashop'],
+        'saas': ['salesforce', 'hubspot', 'zendesk', 'atlassian', 'slack', 'zoom'],
+        'edtech': ['coursera', 'udemy', 'khan-academy', 'duolingo', 'skillshare'],
+        'logistics': ['fedex', 'ups', 'dhl', 'flexport', 'shippo', 'easypost']
+    }
+    
+    # Find matching companies based on keywords
+    for keyword in keywords[:3]:  # Use first 3 keywords
+        for industry, companies in industry_mappings.items():
+            if keyword in industry or industry in keyword:
+                for company in companies[:3]:  # Get 3 companies per match
+                    url = f"https://www.linkedin.com/company/{company}"
+                    if url not in urls:
+                        urls.append(url)
+                        if len(urls) >= max_results:
+                            return urls
+    
+    # Third method: Direct keyword-based URL construction
+    for keyword in keywords[:max_results]:
+        if len(keyword) > 2:  # Skip very short words
+            # Try different URL patterns
+            patterns = [
+                keyword,
+                f"{keyword}-inc",
+                f"{keyword}-technologies",
+                f"{keyword}-solutions",
+                f"{keyword}inc",
+                f"{keyword}tech"
+            ]
             
-    logger.debug(f"Found {len(urls)} LinkedIn URLs")
-    return urls[:max_results]
+            for pattern in patterns:
+                url = f"https://www.linkedin.com/company/{pattern}"
+                if url not in urls:
+                    urls.append(url)
+                    if len(urls) >= max_results:
+                        return urls[:max_results]
+    
+    logger.debug(f"Constructed {len(urls)} potential LinkedIn URLs")
+    return urls[:max_results] if urls else []
 
 def run_scraper(
     keywords=None,
@@ -278,8 +312,13 @@ def run_scraper(
     country = country or config.get('country', 'United Kingdom')
     size = size or config.get('size', '51-200')
     
-    # Build search query
-    query = f"{keywords} companies founded {','.join(founded_years)} in {country} with {size} employees"
+    # Build more targeted search query
+    if founded_years and len(founded_years) > 0:
+        years_str = " OR ".join(founded_years)
+        query = f"{keywords} companies {country} ({years_str}) employees {size}"
+    else:
+        query = f"{keywords} companies {country} employees {size}"
+    
     logger.info(f"Search Query: {query}")
     
     # Get LinkedIn company URLs

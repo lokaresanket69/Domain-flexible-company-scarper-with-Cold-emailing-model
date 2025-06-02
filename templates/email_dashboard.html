@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Email Dashboard - LinkedIn Company Scraper{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Email Management Dashboard</h1>
+                <div>
+                    <a href="{{ url_for('view_companies') }}" class="btn btn-outline-secondary">
+                        <i data-feather="database"></i> View All Companies
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                        <i data-feather="search"></i> Scrape More Companies
+                    </a>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">{{ stats.total_companies }}</h5>
+                            <p class="card-text">Total Companies</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">{{ stats.companies_with_emails }}</h5>
+                            <p class="card-text">Emails Generated</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning">{{ stats.companies_without_emails }}</h5>
+                            <p class="card-text">Pending Generation</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-info">{{ stats.emails_sent }}</h5>
+                            <p class="card-text">Emails Sent</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Generation Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i data-feather="edit"></i> Generate Emails with Ollama
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="generateEmailForm">
+                                <div class="mb-3">
+                                    <label for="model_name" class="form-label">Ollama Model</label>
+                                    <select class="form-select" id="model_name" name="model_name">
+                                        <option value="mistral">Mistral</option>
+                                        <option value="llama2">Llama 2</option>
+                                        <option value="codellama">Code Llama</option>
+                                        <option value="neural-chat">Neural Chat</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-feather="zap"></i> Generate Emails
+                                </button>
+                            </form>
+                            <div id="generateProgress" class="mt-3" style="display: none;">
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted mt-1">Generating personalized emails...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i data-feather="mail"></i> Send Emails via cPanel
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="sendEmailForm">
+                                <div class="mb-3">
+                                    <label for="smtp_server" class="form-label">SMTP Server</label>
+                                    <input type="text" class="form-control" id="smtp_server" name="smtp_server" 
+                                           placeholder="mail.yourdomain.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="smtp_port" class="form-label">SMTP Port</label>
+                                    <input type="number" class="form-control" id="smtp_port" name="smtp_port" 
+                                           value="587" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="email_address" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email_address" name="email_address" 
+                                           placeholder="your@domain.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="email_password" class="form-label">Email Password</label>
+                                    <input type="password" class="form-control" id="email_password" name="email_password" 
+                                           placeholder="Your email password" required>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i data-feather="send"></i> Send Emails
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Companies -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i data-feather="users"></i> Recent Companies
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Region</th>
+                                    <th>Industry</th>
+                                    <th>Email</th>
+                                    <th>Generated</th>
+                                    <th>Sent</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for company in companies %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ company.name }}</strong>
+                                        <br><small class="text-muted">{{ company.location }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ company.region or 'Other' }}</span>
+                                    </td>
+                                    <td>{{ company.domain_class }}</td>
+                                    <td>
+                                        {% if company.email or company.contact_email %}
+                                            <span class="text-success">
+                                                <i data-feather="check-circle" style="width: 16px; height: 16px;"></i>
+                                                {{ company.email or company.contact_email }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-warning">
+                                                <i data-feather="alert-circle" style="width: 16px; height: 16px;"></i>
+                                                No email
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if company.generated_email %}
+                                            <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if company.email_sent %}
+                                            <span class="badge bg-info">Sent</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if company.generated_email %}
+                                                <button class="btn btn-outline-primary btn-sm" 
+                                                        onclick="viewGeneratedEmail('{{ company.id }}')">
+                                                    <i data-feather="eye" style="width: 14px; height: 14px;"></i>
+                                                </button>
+                                            {% endif %}
+                                            <input type="checkbox" class="btn-check company-checkbox" 
+                                                   id="company_{{ company.id }}" value="{{ company.id }}">
+                                            <label class="btn btn-outline-secondary btn-sm" for="company_{{ company.id }}">
+                                                <i data-feather="check" style="width: 14px; height: 14px;"></i>
+                                            </label>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generated Email Modal -->
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generated Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="emailContent" class="bg-light p-3 rounded"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Email generation form
+document.getElementById('generateEmailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const progressDiv = document.getElementById('generateProgress');
+    
+    progressDiv.style.display = 'block';
+    
+    fetch('/generate_emails', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressDiv.style.display = 'none';
+        if (data.success) {
+            alert(`Successfully generated emails for ${data.generated_count} companies!`);
+            location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        progressDiv.style.display = 'none';
+        alert(`Error: ${error.message}`);
+    });
+});
+
+// Email sending form
+document.getElementById('sendEmailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const selectedCompanies = document.querySelectorAll('.company-checkbox:checked');
+    
+    selectedCompanies.forEach(checkbox => {
+        formData.append('company_ids', checkbox.value);
+    });
+    
+    if (selectedCompanies.length === 0) {
+        alert('Please select companies to send emails to, or leave none selected to send to all.');
+    }
+    
+    fetch('/send_emails', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Email sending completed! Sent: ${data.sent_count}, Failed: ${data.failed_count}`);
+            location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`Error: ${error.message}`);
+    });
+});
+
+// View generated email function
+function viewGeneratedEmail(companyId) {
+    // Implementation to fetch and display generated email
+    const modal = new bootstrap.Modal(document.getElementById('emailModal'));
+    document.getElementById('emailContent').textContent = 'Loading email content...';
+    modal.show();
+    
+    // You can add an API call here to fetch the specific email content
+}
+</script>
+{% endblock %}

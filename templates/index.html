@@ -38,11 +38,10 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="founded_years" class="form-label">Founded Years</label>
-                            <input type="text" class="form-control" id="founded_years" name="founded_years" 
-                                   value="{{ config.get('founded_years', ['2015', '2016', '2017'])|join(', ') }}" 
-                                   placeholder="e.g., 2015, 2016, 2017">
-                            <div class="form-text">Comma-separated years</div>
+                            <label for="region" class="form-label">City/Region</label>
+                            <input type="text" class="form-control" id="region" name="region" 
+                                   placeholder="e.g., Pune, Mumbai, Bangalore, London">
+                            <div class="form-text">Specific city or region within the country</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="size" class="form-label">Company Size</label>
@@ -60,16 +59,35 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label for="founded_years" class="form-label">Founded Years</label>
+                            <input type="text" class="form-control" id="founded_years" name="founded_years" 
+                                   value="{{ config.get('founded_years', ['2015', '2016', '2017'])|join(', ') }}" 
+                                   placeholder="e.g., 2015, 2016, 2017">
+                            <div class="form-text">Comma-separated years</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label for="max_results" class="form-label">Max Results</label>
                             <input type="number" class="form-control" id="max_results" name="max_results" 
                                    value="{{ config.get('max_results', 10) }}" min="1" max="50">
                             <div class="form-text">Maximum number of companies to scrape (1-50)</div>
                         </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="sleep_time" class="form-label">Sleep Time (seconds)</label>
                             <input type="number" class="form-control" id="sleep_time" name="sleep_time" 
                                    value="{{ config.get('sleep_time', 1.0) }}" min="0.5" max="10" step="0.1">
                             <div class="form-text">Delay between requests to avoid rate limiting</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="extract_emails" class="form-label">Extract Contact Details</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="extract_emails" name="extract_emails" checked>
+                                <label class="form-check-label" for="extract_emails">
+                                    Extract emails and contact information
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -83,12 +101,51 @@
             </div>
         </div>
 
+        <!-- Email Management Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i data-feather="mail"></i>
+                            Email Generation & Sending
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6>1. Generate Emails</h6>
+                                <p class="text-muted small">Create personalized emails using Ollama</p>
+                                <button class="btn btn-primary btn-sm" id="generateEmailsBtn">
+                                    <i data-feather="zap"></i> Generate Emails
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>2. View & Edit</h6>
+                                <p class="text-muted small">Review and customize generated emails</p>
+                                <button class="btn btn-info btn-sm" id="viewEmailsBtn">
+                                    <i data-feather="eye"></i> View Generated
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>3. Send Emails</h6>
+                                <p class="text-muted small">Send via cPanel webmail</p>
+                                <button class="btn btn-success btn-sm" id="sendEmailsBtn">
+                                    <i data-feather="send"></i> Send Emails
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Quick Actions -->
         <div class="row mt-4">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body text-center">
-                        <i data-feather="building" class="mb-3" style="width: 48px; height: 48px;"></i>
+                        <i data-feather="users" class="mb-3" style="width: 48px; height: 48px;"></i>
                         <h5>View Companies</h5>
                         <p class="text-muted">Browse all scraped company data</p>
                         <a href="{{ url_for('view_companies') }}" class="btn btn-outline-primary">
@@ -97,7 +154,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-body text-center">
                         <i data-feather="download" class="mb-3" style="width: 48px; height: 48px;"></i>
@@ -112,6 +169,18 @@
                                 No Data Available
                             </button>
                         {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i data-feather="mail" class="mb-3" style="width: 48px; height: 48px;"></i>
+                        <h5>Email Dashboard</h5>
+                        <p class="text-muted">Manage email campaigns</p>
+                        <a href="{{ url_for('email_dashboard') }}" class="btn btn-outline-info">
+                            Email Dashboard
+                        </a>
                     </div>
                 </div>
             </div>
@@ -146,6 +215,89 @@
         const submitBtn = document.getElementById('scrapeBtn');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Scraping...';
+    });
+
+    // Email generation functionality
+    document.getElementById('generateEmailsBtn').addEventListener('click', function() {
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+        
+        fetch('/generate_emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'model_name=mistral'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully generated emails for ${data.generated_count} companies!`);
+                location.reload();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            alert(`Error: ${error.message}`);
+        })
+        .finally(() => {
+            this.disabled = false;
+            this.innerHTML = '<i data-feather="zap"></i> Generate Emails';
+            feather.replace();
+        });
+    });
+
+    // View emails functionality
+    document.getElementById('viewEmailsBtn').addEventListener('click', function() {
+        window.location.href = '/email_dashboard';
+    });
+
+    // Send emails functionality
+    document.getElementById('sendEmailsBtn').addEventListener('click', function() {
+        // Create a simple modal for SMTP configuration
+        const smtpConfig = prompt(`Enter your SMTP configuration in this format:
+server,port,email,password
+
+Example: mail.yourdomain.com,587,your@email.com,password`);
+        
+        if (smtpConfig) {
+            const [smtp_server, smtp_port, email_address, email_password] = smtpConfig.split(',');
+            
+            if (smtp_server && smtp_port && email_address && email_password) {
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+                
+                const formData = new FormData();
+                formData.append('smtp_server', smtp_server.trim());
+                formData.append('smtp_port', smtp_port.trim());
+                formData.append('email_address', email_address.trim());
+                formData.append('email_password', email_password.trim());
+                
+                fetch('/send_emails', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Email sending completed! Sent: ${data.sent_count}, Failed: ${data.failed_count}`);
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    alert(`Error: ${error.message}`);
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i data-feather="send"></i> Send Emails';
+                    feather.replace();
+                });
+            } else {
+                alert('Please provide all SMTP configuration details');
+            }
+        }
     });
 </script>
 {% endblock %}

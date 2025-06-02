@@ -49,10 +49,14 @@ def create_app():
     
     # Create tables if they don't exist
     with app.app_context():
-        # Import models to ensure they're registered
-        import models  # noqa: F401
-        db.create_all()
-        logger.info("Database tables created successfully")
+        try:
+            # Import models to ensure they're registered
+            import models  # noqa: F401
+            db.create_all()
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+            # Continue running without database - use CSV fallback
     
     return app
 

@@ -18,7 +18,12 @@ class GroqEmailGenerator:
         self.api_key = api_key or os.environ.get("GROQ_API_KEY")
         if not self.api_key:
             raise ValueError("Groq API key is required. Provide it as an argument or set the GROQ_API_KEY environment variable.")
-        self.client = Groq(api_key=self.api_key)
+        try:
+            # Initialize Groq client with only the api_key parameter
+            self.client = Groq(api_key=self.api_key)
+        except Exception as e:
+            logger.error(f"Failed to initialize Groq client: {str(e)}")
+            raise
 
     def generate_email(self, company_data: Dict, from_company: str = "Prabisha Consulting Pvt. Ltd.") -> str:
         """

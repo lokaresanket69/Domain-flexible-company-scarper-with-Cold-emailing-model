@@ -241,34 +241,62 @@
     });
 
     // Email generation functionality
-    document.getElementById('generateEmailsBtn').addEventListener('click', function() {
-        this.disabled = true;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    document.getElementById('generateEmailsBtn').addEventListener('click', async function() {
+        const button = this;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Fetching companies...';
         
-        fetch('/generate_emails', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'model_name=mistral'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(`Successfully generated emails for ${data.generated_count} companies!`);
-                location.reload();
-            } else {
-                alert(`Error: ${data.error}`);
+        try {
+            // First, fetch the companies that need emails
+            const companiesResponse = await fetch('/api/companies');
+            const companiesData = await companiesResponse.json();
+            
+            if (!companiesData.data || companiesData.data.length === 0) {
+                throw new Error('No companies found. Please scrape some companies first.');
             }
-        })
-        .catch(error => {
-            alert(`Error: ${error.message}`);
-        })
-        .finally(() => {
-            this.disabled = false;
-            this.innerHTML = '<i data-feather="zap"></i> Generate Emails';
+            
+            // Filter companies that don't have generated emails yet
+            const companiesNeedingEmails = companiesData.data
+                .filter(company => !company.generated_email)
+                .slice(0, 10); // Limit to 10 companies at a time
+                
+            if (companiesNeedingEmails.length === 0) {
+                alert('All companies already have generated emails!');
+                return;
+            }
+            
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating emails...';
+            
+            // Now generate emails for these companies
+            const response = await fetch('/generate-emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model_name: 'llama3-8b-8192',
+                    companies: companiesNeedingEmails
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.message) {
+                alert(data.message);
+                if (data.companies && data.companies.length > 0) {
+                    location.reload();
+                }
+            } else {
+                throw new Error(data.error || 'Failed to generate emails');
+            }
+        } catch (error) {
+            console.error('Email generation error:', error);
+            alert(`Error: ${error.message || 'Failed to generate emails'}`);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i data-feather="zap"></i> Generate Emails';
             feather.replace();
-        });
+        }
     });
 
     // View emails functionality

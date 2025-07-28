@@ -407,29 +407,152 @@ def scrape_linkedin_company_page(url, user_agent='Mozilla/5.0', timeout=20):
     """
     Scrape a LinkedIn company page using a robust, undetectable headless Selenium setup.
     """
-    logging.info(f"[Selenium] Starting undetectable headless browser for {url}")
+    logging.info(f"[Selenium] Starting headless browser for {url}")
+    
+    # Initialize Chrome options
     options = Options()
-    options.add_argument('--headless=new')  # Use the new, more undetectable headless mode
-    options.add_argument('--disable-gpu')
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument(f'user-agent={user_agent}')
+    
+    # Set Chrome binary path from environment if available
+    chrome_bin = os.environ.get('CHROME_BIN', '/usr/bin/google-chrome')
+    options.binary_location = chrome_bin
+    
+    # Basic Chrome options
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-
-    # Anti-detection measures
-    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument('--disable-gpu')
+    options.add_argument('--disable-software-rasterizer')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--disable-infobars')
+    options.add_argument('--disable-notifications')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--start-maximized')
+    options.add_argument('--disable-web-security')
+    options.add_argument('--allow-running-insecure-content')
+    options.add_argument('--disable-setuid-sandbox')
+    options.add_argument('--disable-browser-side-navigation')
+    options.add_argument('--disable-client-side-phishing-detection')
+    options.add_argument('--disable-component-update')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-features=IsolateOrigins,site-per-process')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument('--log-level=3')
+    options.add_argument('--output=/dev/null')
+    options.add_argument('--remote-debugging-port=9222')
+    options.add_argument('--remote-debugging-address=0.0.0.0')
+    options.add_argument(f'user-agent={user_agent}')
+    
+    # Experimental options
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
+    
+    # Log the Chrome binary being used
+    logging.info(f"[Selenium] Using Chrome binary at: {chrome_bin}")
+    if not os.path.exists(chrome_bin):
+        logging.warning(f"[Selenium] Chrome binary not found at: {chrome_bin}")
 
     try:
-        driver = webdriver.Chrome(options=options)
-        # Further hide automation by executing a CDP command
-        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-            'source': "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        })
+        driver = None
+        
+        # Try direct Chrome first
+        try:
+            from selenium.webdriver.chrome.service import Service as ChromeService
+            from webdriver_manager.chrome import ChromeDriverManager
+            
+            logging.info("Attempting to initialize Chrome WebDriver...")
+            service = ChromeService(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=options)
+            logging.info("Successfully initialized Chrome WebDriver")
+            
+        except Exception as chrome_error:
+            logging.warning(f"Failed to initialize Chrome: {str(chrome_error)}")
+            
+            # Try Chromium as fallback
+            try:
+                from selenium.webdriver.chrome.service import Service as ChromeService
+                from webdriver_manager.chrome import ChromeDriverManager
+                from webdriver_manager.core.utils import ChromeType
+                
+                logging.info("Attempting to initialize Chromium WebDriver...")
+                service = ChromeService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+                driver = webdriver.Chrome(service=service, options=options)
+                logging.info("Successfully initialized Chromium WebDriver")
+                
+            except Exception as chromium_error:
+                logging.error(f"Failed to initialize Chromium: {str(chromium_error)}")
+                
+                # Try direct executable path as last resort
+                try:
+                    from selenium.webdriver.chrome.service import Service as ChromeService
+                    from selenium.webdriver.chrome.options import Options
+                    
+                    logging.info("Attempting to initialize with direct Chrome path...")
+                    chrome_path = "/usr/bin/google-chrome"
+                    chromedriver_path = "/usr/local/bin/chromedriver"
+                    
+                    options.binary_location = chrome_path
+                    service = ChromeService(executable_path=chromedriver_path)
+                    driver = webdriver.Chrome(service=service, options=options)
+                    logging.info("Successfully initialized with direct Chrome path")
+                    
+                except Exception as direct_error:
+                    error_msg = f"All WebDriver initialization attempts failed. Chrome: {str(chrome_error)} | Chromium: {str(chromium_error)} | Direct: {str(direct_error)}"
+                    logging.error(error_msg)
+                    return {'error': 'Failed to initialize WebDriver. Please check logs for details.'}
+        
+        if not driver:
+            return {'error': 'Failed to initialize WebDriver after multiple attempts'}
+            
+        # Set page load timeout
+        driver.set_page_load_timeout(30)
+        
+        # Configure browser to look more like a regular user
+        try:
+            # Hide WebDriver
+            driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+                'source': """
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                window.navigator.chrome = { runtime: {} };
+                """
+            })
+            
+            # Set user agent and other browser properties
+            driver.execute_cdp_cmd('Network.setUserAgentOverride', {
+                'userAgent': user_agent,
+                'platform': 'Linux x86_64',
+                'acceptLanguage': 'en-US,en;q=0.9',
+                'userAgentMetadata': {
+                    'platform': 'Linux',
+                    'platformVersion': '5.4.0',
+                    'architecture': 'x86',
+                    'model': '',
+                    'mobile': False
+                }
+            })
+            
+            # Additional anti-detection measures
+            driver.execute_script("""
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en', 'fr']
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+                Object.defineProperty(navigator, 'permissions', {
+                    get: () => ({
+                        query: () => Promise.resolve({ state: 'granted' })
+                    })
+                });
+            """)
+            
+        except Exception as cdp_error:
+            logging.warning(f"CDP commands failed: {str(cdp_error)}")
+            # Continue even if CDP commands fail
+            
     except Exception as e:
-        logging.error("ChromeDriver not found or not working. Please install and add to PATH.")
-        return {'error': 'ChromeDriver not found or not working. Please install and add to PATH.'}
+        logging.error(f"Unexpected error initializing WebDriver: {str(e)}")
+        return {'error': f'Unexpected error initializing WebDriver: {str(e)}'}
     
     driver.set_page_load_timeout(timeout)
     try:

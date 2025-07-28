@@ -115,7 +115,7 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <h6>1. Generate Emails</h6>
-                                <p class="text-muted small">Create personalized emails using Ollama</p>
+                                <p class="text-muted small">Create personalized emails using Groq AI</p>
                                 <button class="btn btn-primary btn-sm" id="generateEmailsBtn">
                                     <i data-feather="zap"></i> Generate Emails
                                 </button>
@@ -206,15 +206,38 @@
 
 {% block scripts %}
 <script>
-    document.getElementById('scraperForm').addEventListener('submit', function() {
-        // Show loading modal
+    document.getElementById('scraperForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
-        loadingModal.show();
-        
-        // Disable submit button
         const submitBtn = document.getElementById('scrapeBtn');
+        const formData = new FormData(this);
+
+        loadingModal.show();
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Scraping...';
+
+        try {
+            const response = await fetch('/scrape', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                window.location.href = data.redirect_url;
+            } else {
+                loadingModal.hide();
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Start Scraping';
+                alert('Error: ' + (data.error || 'Unknown error occurred.'));
+            }
+        } catch (error) {
+            loadingModal.hide();
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Start Scraping';
+            alert('A network or server error occurred. Please try again.');
+        }
     });
 
     // Email generation functionality

@@ -2,13 +2,14 @@ import json
 import os
 import logging
 import traceback
-from flask import render_template, request, jsonify, send_file, redirect, url_for, flash
+from flask import render_template, request, jsonify, send_file, redirect, url_for, flash, session
 import pandas as pd
 from leads import run_scraper
 from utils.nlp_processor import process_descriptions
-from utils.ollama_email_generator import OllamaEmailGenerator
+from utils.groq_email_generator import GroqEmailGenerator
 from utils.cpanel_email_sender import CPanelEmailSender
 from models import Company
+from db import db
 from datetime import datetime
 
 # Configure logging
@@ -36,19 +37,16 @@ def register_routes(app, db):
 
     @app.route('/scrape', methods=['POST'])
     def scrape():
+        """Handle company scraping requests and return JSON."""
         try:
             keywords = request.form.get('keywords', 'IT services')
-            founded_years = request.form.get('founded_years', '2015')
-            founded_years = [year.strip() for year in founded_years.split(',')]
+            founded_years_str = request.form.get('founded_years', '')
+            founded_years = [year.strip() for year in founded_years_str.split(',')] if founded_years_str else []
             country = request.form.get('country', 'United Kingdom')
-            region = request.form.get('region', 'All Regions')  # New region parameter
             size = request.form.get('size', '51-200')
             max_results = int(request.form.get('max_results', 10))
             sleep_time = float(request.form.get('sleep_time', 1.0))
             
-            logger.debug(f"Scraping with parameters: keywords={keywords}, years={founded_years}, country={country}, size={size}")
-            
-            # Run the scraper
             results_df = run_scraper(
                 keywords=keywords,
                 founded_years=founded_years,
@@ -58,51 +56,51 @@ def register_routes(app, db):
                 sleep_time=sleep_time
             )
             
-            # Process descriptions with NLP
             if not results_df.empty:
                 results_df = process_descriptions(results_df)
-                results_df.to_csv('lead1.csv', index=False)
                 
-                # Save to database
                 companies_saved = 0
                 for _, row in results_df.iterrows():
                     try:
-                        # Convert row to dict and create Company object
                         company_data = row.to_dict()
-                        
-                        # Check if company already exists (by LinkedIn URL)
                         existing_company = Company.query.filter_by(linkedin_url=company_data.get('companyLinkedinUrl')).first()
-                        
                         if existing_company:
-                            # Update existing company
                             for key, value in company_data.items():
-                                if key == 'companyLinkedinUrl':
-                                    continue  # Skip the URL as it's already set
                                 if hasattr(existing_company, key):
                                     setattr(existing_company, key, value)
-                            db.session.commit()
                         else:
-                            # Create new company record
                             new_company = Company.from_dict(company_data)
                             db.session.add(new_company)
-                            db.session.commit()
-                        
+                        db.session.commit()
                         companies_saved += 1
                     except Exception as e:
-                        logger.error(f"Error saving company to database: {str(e)}")
+                        logger.error(f"Error saving company to database: {e}")
                         db.session.rollback()
                 
-                flash(f"Scraping completed successfully! Saved {companies_saved} companies to database.", "success")
-                return render_template('results.html', results=results_df.to_dict('records'))
+                # Store results in session to display on another page
+                session['scraping_results'] = results_df.to_dict('records')
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Successfully scraped {companies_saved} companies.',
+                    'redirect_url': url_for('show_results')
+                })
             else:
-                flash("No results found. Try adjusting your search parameters.", "warning")
-                return redirect(url_for('index'))
+                return jsonify({'success': False, 'error': 'No results found.'}), 404
                 
         except Exception as e:
-            logger.error(f"Error during scraping: {str(e)}")
+            logger.error(f"Error during scraping: {e}")
             logger.error(traceback.format_exc())
-            flash(f"An error occurred: {str(e)}", "danger")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/results')
+    def show_results():
+        """Display scraping results stored in the session."""
+        results = session.pop('scraping_results', [])
+        if not results:
+            flash("No scraping results to display.", "warning")
             return redirect(url_for('index'))
+        return render_template('results.html', results=results)
 
     @app.route('/download')
     def download():
@@ -230,68 +228,52 @@ def register_routes(app, db):
                 "error": str(e)
             }), 500
 
-    @app.route('/generate_emails', methods=['POST'])
+    @app.route('/generate-emails', methods=['POST'])
     def generate_emails():
-        """Generate personalized emails using Ollama for scraped companies"""
+        """Generate personalized emails using Groq for scraped companies"""
         try:
-            # Get parameters
-            model_name = request.form.get('model_name', 'mistral')
-            company_ids = request.form.getlist('company_ids')
-            
-            # Initialize Ollama email generator
-            email_generator = OllamaEmailGenerator(model_name=model_name)
-            
-            # Check if Ollama is available
-            if not email_generator.check_ollama_availability():
-                return jsonify({
-                    'error': 'Ollama is not available. Please ensure Ollama is installed and running.',
-                    'success': False
-                }), 400
-            
-            # Get companies from database
-            if company_ids:
-                companies = Company.query.filter(Company.id.in_(company_ids)).all()
-            else:
-                companies = Company.query.filter(Company.generated_email.is_(None)).all()
+            data = request.get_json()
+            model_name = data.get('model_name', 'llama3-8b-8192')
+            companies = data.get('companies', [])
             
             if not companies:
-                return jsonify({
-                    'message': 'No companies found for email generation',
-                    'success': True,
-                    'generated_count': 0
-                })
+                return jsonify({'error': 'No companies provided for email generation'}), 400
             
-            # Convert to list of dictionaries
-            companies_data = [company.to_dict() for company in companies]
+            # Get Groq API key from environment variables
+            groq_api_key = os.environ.get("GROQ_API_KEY")
+            if not groq_api_key:
+                return jsonify({
+                    'error': 'Groq API key not found. Please set the GROQ_API_KEY environment variable.'
+                }), 500
+                
+            # Initialize Groq email generator
+            email_generator = GroqEmailGenerator(api_key=groq_api_key)
             
             # Generate emails
-            results = email_generator.generate_emails_for_companies(companies_data)
-            
-            # Update database with generated emails
-            for result in results:
-                if result.get('company_id'):
-                    company = Company.query.get(result['company_id'])
-                    if company:
-                        company.generated_email = result['generated_email']
-                        db.session.commit()
-            
-            # Save results to CSV
-            output_file = email_generator.save_generated_emails_to_csv(results)
+            generated_emails = []
+            for company in companies:
+                # Generate email
+                email_content = email_generator.generate_email(company, from_company="Prabisha Consulting Pvt. Ltd.")
+                
+                # Update company data with generated email
+                company['generated_email'] = email_content
+                
+                # Save updated company to database
+                db_company = Company.query.get(company['id'])
+                if db_company:
+                    db_company.generated_email = email_content
+                    db.session.commit()
+                
+                generated_emails.append(company)
             
             return jsonify({
-                'message': f'Generated emails for {len(results)} companies',
-                'success': True,
-                'generated_count': len(results),
-                'output_file': output_file,
-                'results': results
+                'message': f'Successfully generated emails for {len(generated_emails)} companies',
+                'companies': generated_emails
             })
-            
         except Exception as e:
-            logger.error(f"Error generating emails: {str(e)}")
-            return jsonify({
-                'error': f'Email generation failed: {str(e)}',
-                'success': False
-            }), 500
+            logger.error(f"Error generating emails with Groq: {e}")
+            logger.error(traceback.format_exc())
+            return jsonify({'error': str(e)}), 500
     
     @app.route('/send_emails', methods=['POST'])
     def send_emails():
@@ -405,5 +387,19 @@ def register_routes(app, db):
             logger.error(f"Error loading email dashboard: {str(e)}")
             flash(f"Error loading dashboard: {str(e)}", "danger")
             return redirect(url_for('index'))
+
+    @app.route('/get-email/<int:company_id>', methods=['GET'])
+    def get_email(company_id):
+        """[DEBUG] Fetch the generated email content for a specific company."""
+        print(f"--- DEBUG: /get-email route hit for company ID: {company_id} ---")
+        try:
+            # For debugging, we bypass the database and return a test email.
+            return jsonify({
+                'success': True,
+                'email_content': f"This is a test email for Company ID: {company_id}. If you see this, the route is working."
+            })
+        except Exception as e:
+            print(f"--- DEBUG: Error in /get-email route: {e} ---")
+            return jsonify({'success': False, 'error': 'A server error occurred.'}), 500
 
     return app

@@ -4,6 +4,11 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from db import db
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+print(f"--- Groq API Key Loaded: {os.environ.get('GROQ_API_KEY') is not None} ---") # Debugging line
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -12,7 +17,7 @@ logger = logging.getLogger(__name__)
 class Base(DeclarativeBase):
     pass
 
-db = SQLAlchemy(model_class=Base)
+# Remove db = SQLAlchemy(model_class=Base)
 
 def create_app():
     # Create Flask app
@@ -62,3 +67,6 @@ def create_app():
 
 # Create the app instance
 app = create_app()
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

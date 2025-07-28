@@ -1,5 +1,5 @@
-from app import db
 from datetime import datetime
+from db import db
 
 class Company(db.Model):
     """Enhanced model for storing LinkedIn company data with new classification fields"""
